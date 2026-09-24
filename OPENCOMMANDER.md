@@ -113,10 +113,36 @@ Approval gắn với đúng tool + tham số, dùng 1 lần, hết hạn sau 15 
 
 Cộng với các tool gốc của Desktop Commander (bỏ các tool feedback/onboarding/usage). Có thể ẩn thêm bằng `hidden_tools` trong config.
 
+## Nhiều máy: chế độ Hub (1 connector điều khiển cả PC lẫn Laptop)
+
+Nếu bạn có nhiều máy và dùng chung một tài khoản ChatGPT, dựng **hub** trên Cloudflare Workers: chỉ một URL MCP cố định, ChatGPT chọn máy nào để chạy. Mỗi máy chạy `opencommander agent` và tự kết nối RA hub — không cần tunnel, không mở cổng, không IP tĩnh. Máy nào tắt cũng không ảnh hưởng máy kia. Đây là cách giống Remote Desktop Commander `remote`, nhưng hub là của riêng bạn.
+
+```
+ChatGPT ─▶ https://<hub>.workers.dev/mcp/<MCP_TOKEN> ─▶ hub ─┬─▶ agent PC
+                                                            └─▶ agent Laptop
+```
+
+1. Deploy hub một lần: xem `hub/cloudflare/README.md` (`npm install` → `npx wrangler login` → `npm run deploy`, cần tài khoản Cloudflare miễn phí). Lệnh deploy in ra URL + 3 secret + đúng các lệnh cần dán.
+2. ChatGPT: Tạo plugin với URL `https://<hub>.workers.dev/mcp/<MCP_TOKEN>`, Auth None.
+3. Mỗi máy:
+   ```
+   opencommander config set hub.url https://<hub>.workers.dev
+   opencommander config set hub.agent_key <AGENT_KEY>
+   opencommander config set machine_name PC          # máy kia: Laptop
+   opencommander agent                               # hoặc install-agent-autostart.ps1
+   ```
+4. Trong chat: mỗi tool có tham số `machine`. ChatGPT gọi `list_machines` để biết máy online rồi chỉ định `machine:"PC"` hoặc `"Laptop"`. Ngồi laptop vẫn điều khiển được PC và ngược lại.
+
+Duyệt lệnh nguy hiểm từ xa: trang `<hub>/admin` (nhập `ADMIN_KEY`) thấy approval của mọi máy — ngồi máy nào cũng duyệt cho máy nào.
+
+So với dùng tunnel một máy (phần trên): hub tiện hơn khi có nhiều máy hoặc muốn URL cố định; tunnel đơn giản hơn nếu chỉ một máy. Hai cách dùng chung code, khác nhau ở chỗ chạy `serve` (một máy + tunnel) hay `agent` (nối vào hub).
+
 ## CLI
 
 ```
 opencommander serve | stdio | init | token [--rotate] | doctor
+opencommander agent [--hub <url>] [--key <AGENT_KEY>] [--name PC]   # chế độ hub
+opencommander config set <key> <value>          # vd: config set hub.url https://<hub>.workers.dev
 opencommander approvals | approve <id> | deny <id>
 opencommander jobs [status] | job <id> | logs <id> [--tail 200] | cancel <id>
 ```

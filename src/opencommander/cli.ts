@@ -14,7 +14,7 @@ import '../bootstrap.js';
 import './env-bootstrap.js';
 import net from 'net';
 import { spawnSync } from 'child_process';
-import { configPath, dirs, ensureConfigFile, getConfig, getOrCreateToken, rotateToken } from './config.js';
+import { configPath, dirs, ensureConfigFile, getConfig, getOrCreateToken, machineName, rotateToken, setConfigKey } from './config.js';
 import { decide, listApprovals } from './security/approvals.js';
 import { cancelJob, listJobs, readLogs, requireJob, summarize } from './jobs/manager.js';
 import { hasBinary, IS_WIN } from './util.js';
@@ -33,8 +33,11 @@ Usage: opencommander <command>
   serve [--port 7800] [--host 127.0.0.1] [--admin-port 7801] [--no-admin]
                  Start the HTTP MCP endpoint for ChatGPT (put a tunnel in front of it)
   stdio          Start as a stdio MCP server (Claude Desktop / Cursor / VS Code)
+  agent [--hub <url>] [--key <AGENT_KEY>] [--name PC]
+                 Connect this computer to a hub so ONE ChatGPT connector controls many machines
   init           Create config + token and print the ChatGPT connection steps
   token          Print the token and connector URLs   (--rotate to create a new one)
+  config set <key> <value>   Edit config.json, e.g. config set hub.url https://<hub>.workers.dev
   approvals      List pending approvals
   approve <id>   Approve a pending risky action        deny <id>   Deny it
   jobs [status]  List jobs (active|finished|failed|…)  job <id>    Show one job
@@ -75,6 +78,11 @@ async function main() {
             await import('../index.js');
             return;
         }
+        case 'agent': {
+            const { runAgent } = await import('./agent.js');
+            await runAgent({ hubUrl: opt('hub'), agentKey: opt('key'), name: opt('name') });
+            return;
+        }
         case 'init': {
             const p = ensureConfigFile();
             const t = getOrCreateToken();
@@ -91,6 +99,20 @@ Next steps
       Auth: No authentication (the secret is in the URL)  — or use a client that sends
             "Authorization: Bearer ${t}" to https://<host>/mcp
  5. Approvals dashboard (local only): http://127.0.0.1:${c.http.admin_port}/`);
+            return;
+        }
+        case 'config': {
+            if (argv[1] === 'set' && argv[2]) {
+                const value = argv.slice(3).join(' ');
+                const r = setConfigKey(argv[2], value);
+                out({ set: r.key, value: r.value, config: configPath() });
+            } else if (argv[1] === 'get' || argv[1] === undefined) {
+                out(getConfig());
+            } else if (argv[1] === 'path') {
+                out(configPath());
+            } else {
+                out('usage: opencommander config [get|path] | config set <key> <value>   e.g. config set hub.url https://...');
+            }
             return;
         }
         case 'token': {

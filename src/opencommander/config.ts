@@ -66,6 +66,15 @@ export interface OpenCommanderConfig {
     hidden_tools: string[];
     /** Send upstream Desktop Commander telemetry. Off by default. */
     telemetry: boolean;
+    /** This computer's name in a multi-machine hub (e.g. "PC", "Laptop"). Defaults to the hostname. */
+    machine_name: string;
+    /** Hub (Cloudflare Worker) settings for `opencommander agent`. */
+    hub: {
+        /** Hub base URL, e.g. https://opencommander-hub.<you>.workers.dev */
+        url: string;
+        /** Shared AGENT_KEY secret configured on the hub. Env OPENCOMMANDER_AGENT_KEY wins. */
+        agent_key: string;
+    };
 }
 
 export const DEFAULT_CONFIG: OpenCommanderConfig = {
@@ -129,7 +138,15 @@ export const DEFAULT_CONFIG: OpenCommanderConfig = {
         'track_ui_event',
     ],
     telemetry: false,
+    machine_name: '',
+    hub: { url: '', agent_key: '' },
 };
+
+/** This machine's name in a hub, resolved from config/env/hostname. */
+export function machineName(): string {
+    const raw = (process.env.OPENCOMMANDER_MACHINE || getConfig().machine_name || os.hostname() || 'machine').trim();
+    return raw.replace(/[^A-Za-z0-9._ -]/g, '').slice(0, 40) || 'machine';
+}
 
 export function ocHome(): string {
     return process.env.OPENCOMMANDER_HOME
@@ -189,6 +206,33 @@ export function getConfig(): OpenCommanderConfig {
     const cfg = deepMerge(DEFAULT_CONFIG, user);
     cached = { mtime, cfg };
     return cfg;
+}
+
+/** Read the raw user config.json (without defaults merged). */
+export function readRawConfig(): Record<string, any> {
+    try { return JSON.parse(fs.readFileSync(configPath(), 'utf8')); } catch { return {}; }
+}
+
+/** Set a dotted key (e.g. "hub.url") in config.json, coercing simple types. */
+export function setConfigKey(dotted: string, rawValue: string): { key: string; value: unknown } {
+    ensureDirs();
+    ensureConfigFile();
+    const obj = readRawConfig();
+    let value: unknown = rawValue;
+    if (rawValue === 'true') value = true;
+    else if (rawValue === 'false') value = false;
+    else if (rawValue !== '' && !Number.isNaN(Number(rawValue)) && /^-?\d+(\.\d+)?$/.test(rawValue)) value = Number(rawValue);
+    else if (rawValue.startsWith('[') || rawValue.startsWith('{')) { try { value = JSON.parse(rawValue); } catch { /* keep string */ } }
+    const parts = dotted.split('.');
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+        if (typeof cur[parts[i]] !== 'object' || cur[parts[i]] === null) cur[parts[i]] = {};
+        cur = cur[parts[i]];
+    }
+    cur[parts[parts.length - 1]] = value;
+    fs.writeFileSync(configPath(), JSON.stringify(obj, null, 2) + '\n', 'utf8');
+    cached = null;
+    return { key: dotted, value };
 }
 
 /** Write a default config.json if none exists yet. */

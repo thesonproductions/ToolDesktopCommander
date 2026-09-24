@@ -126,7 +126,8 @@
     "unified": "^11.0.5",
     "unpdf": "^1.4.0",
     "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.23.5"
+    "zod-to-json-schema": "^3.23.5",
+    "ws": "^8.18.0"
   },
   "optionalDependencies": {
     "caffeinate": "^1.0.1"
@@ -145,6 +146,7 @@
     "shx": "^0.3.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "@types/ws": "^8.5.10"
   }
 }

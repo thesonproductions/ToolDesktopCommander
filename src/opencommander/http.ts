@@ -12,16 +12,13 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { URL } from 'url';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { dirs, ensureConfigFile, ensureDirs, getConfig, getOrCreateToken } from './config.js';
-import { OC_VERSION } from './tools.js';
-import { SHORT_INSTRUCTIONS, WORKFLOW_GUIDE } from './instructions.js';
+import { dirs, ensureConfigFile, getConfig, getOrCreateToken } from './config.js';
 import { decide, listApprovals } from './security/approvals.js';
 import { listJobs, summarize } from './jobs/manager.js';
+import { loadCore, makeCoreServer, redirectConsole } from './core-bridge.js';
+import { OC_VERSION } from './tools.js';
 import { readAudit } from './audit.js';
-
-type ServerModule = typeof import('../server.js');
 
 function safeEqual(a: string, b: string): boolean {
     const x = Buffer.from(a); const y = Buffer.from(b);
@@ -54,27 +51,6 @@ function cors(res: http.ServerResponse) {
     res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
 }
 
-/** Route console noise from the upstream core to a log file instead of stdout. */
-function redirectConsole() {
-    ensureDirs();
-    const logFile = path.join(dirs.root, 'server.log');
-    const write = (lvl: string, args: unknown[]) => {
-        const line = args.map(a => (typeof a === 'string' ? a : (() => { try { return JSON.stringify(a); } catch { return String(a); } })())).join(' ');
-        if (/\[(FEEDBACK|ONBOARDING) DEBUG\]/.test(line)) return;
-        try { fs.appendFileSync(logFile, `${new Date().toISOString()} ${lvl} ${line}\n`); } catch { /* ignore */ }
-    };
-    console.log = (...a: unknown[]) => write('log', a);
-    console.info = (...a: unknown[]) => write('info', a);
-    console.debug = (...a: unknown[]) => write('debug', a);
-    console.warn = (...a: unknown[]) => write('warn', a);
-    // global.mcpTransport stub so upstream logger never writes JSON-RPC to stdout
-    (global as any).mcpTransport = {
-        sendLog: (level: string, message: string, data?: unknown) => write(level, [message, ...(data ? [data] : [])]),
-        enableNotifications: () => { /* no-op */ },
-        configureForClient: () => { /* no-op */ },
-    };
-}
-
 export interface ServeOptions { host?: string; port?: number; adminPort?: number; noAdmin?: boolean; quiet?: boolean }
 
 export async function serve(opts: ServeOptions = {}) {
@@ -89,20 +65,8 @@ export async function serve(opts: ServeOptions = {}) {
     const token = getOrCreateToken();
 
     // Load the upstream core (tool handlers) lazily, after env/console setup.
-    const core: ServerModule = await import('../server.js');
-    const { configManager } = await import('../config-manager.js');
-    try { await configManager.loadConfig(); } catch { /* in-memory config */ }
-    const baseHandlers: Map<string, unknown> = (core.server as any)._requestHandlers;
-
-    const makeServer = () => {
-        const s = new Server(
-            { name: 'opencommander', version: OC_VERSION },
-            { capabilities: { tools: {}, resources: {}, prompts: {}, logging: {} }, instructions: `${SHORT_INSTRUCTIONS}\n\n${WORKFLOW_GUIDE}` },
-        );
-        const target: Map<string, unknown> = (s as any)._requestHandlers;
-        for (const [method, handler] of baseHandlers) target.set(method, handler);
-        return s;
-    };
+    const baseHandlers = await loadCore();
+    const makeServer = () => makeCoreServer(baseHandlers);
 
     const log = (msg: string) => { if (!opts.quiet) process.stderr.write(`${new Date().toISOString().slice(11, 19)} ${msg}\n`); };
 

@@ -1,0 +1,15 @@
+{
+  "name": "opencommander-hub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenCommander hub on Cloudflare Workers: one MCP URL for ChatGPT, routes tool calls to your machines.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "node deploy.mjs",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.38.0"
+  }
+}

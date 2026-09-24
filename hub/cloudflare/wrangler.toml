@@ -1,0 +1,15 @@
+name = "opencommander-hub"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Free plan: Durable Objects need the new SQLite-backed storage class.
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]
+
+[observability]
+enabled = true

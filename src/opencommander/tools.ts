@@ -6,7 +6,7 @@ import os from 'os';
 import path from 'path';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { getConfig, ocHome } from './config.js';
+import { getConfig, machineName, ocHome } from './config.js';
 import {
     cancelJob, cleanupJobs, isTerminal, Job, listArtifacts, listJobs, loadJob, logPath, readLogs, requireJob,
     startJob, StartJobOptions, summarize, waitJob,
@@ -402,7 +402,7 @@ export async function callOcTool(name: string, rawArgs: unknown): Promise<ToolRe
                 const active = listJobs({ status: 'active', limit: 20 }).map(summarize);
                 const recent = listJobs({ status: 'finished', limit: 8 }).map(j => { const s = summarize(j); return { job_id: s.job_id, status: s.status, label: s.label, command: s.command, finished_at: s.finished_at }; });
                 const res: Record<string, unknown> = {
-                    server: { name: 'OpenCommander', version: OC_VERSION, host: os.hostname(), platform: `${process.platform} ${os.release()}`, arch: process.arch, node: process.version, home: os.homedir(), default_job_shell: cfg.jobs.shell === 'auto' ? (process.platform === 'win32' ? 'powershell' : 'bash') : cfg.jobs.shell, security_profile: cfg.security.profile, allowed_roots: cfg.security.allowed_roots.length ? cfg.security.allowed_roots : 'any (protected paths still blocked)', approvals_dashboard: `http://127.0.0.1:${((global as any).__ocAdminPort || cfg.http.admin_port)}/` },
+                    server: { name: 'OpenCommander', version: OC_VERSION, machine: machineName(), host: os.hostname(), platform: `${process.platform} ${os.release()}`, arch: process.arch, node: process.version, home: os.homedir(), default_job_shell: cfg.jobs.shell === 'auto' ? (process.platform === 'win32' ? 'powershell' : 'bash') : cfg.jobs.shell, security_profile: cfg.security.profile, allowed_roots: cfg.security.allowed_roots.length ? cfg.security.allowed_roots : 'any (protected paths still blocked)', approvals_dashboard: `http://127.0.0.1:${((global as any).__ocAdminPort || cfg.http.admin_port)}/` },
                     workflow: WORKFLOW_GUIDE.replace('http://127.0.0.1:7801', `http://127.0.0.1:${((global as any).__ocAdminPort || cfg.http.admin_port)}`),
                     running_jobs: active,
                     recent_jobs: recent,
