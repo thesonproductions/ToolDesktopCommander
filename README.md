@@ -1,3 +1,18 @@
+# OpenCommander (fork of Desktop Commander)
+
+> Self-hosted MCP server that lets **ChatGPT Web** (and any MCP client) work on your machine like a coding agent:
+> no tool-call quotas, persistent background jobs that survive ChatGPT timeouts and server restarts,
+> idempotent retries, structured test/lint results, one-call `repo_verify`, git checkpoints/rollback,
+> repository intelligence, human approvals for risky commands, secret masking and audit logs.
+>
+> **Setup & docs: [OPENCOMMANDER.md](OPENCOMMANDER.md)** · ChatGPT workflow skill: [`plugin/opencommander`](plugin/opencommander)
+>
+> Quick start: `npm install` → `node dist/opencommander/cli.js init` → `node dist/opencommander/cli.js serve` → tunnel → add connector `https://<host>/mcp/<token>` in ChatGPT developer mode.
+
+The original Desktop Commander README follows (all its tools are still included).
+
+---
+
 # Desktop Commander MCP
 ### Search, update, manage files and run terminal commands with AI
 

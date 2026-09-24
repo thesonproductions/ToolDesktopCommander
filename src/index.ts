@@ -3,6 +3,8 @@
 // MUST be first: raises the libuv threadpool size before any fs work is
 // submitted. See src/bootstrap.ts for why import order matters.
 import './bootstrap.js';
+// OpenCommander: telemetry off by default (must run before server.js loads)
+import './opencommander/env-bootstrap.js';
 import { FilteredStdioServerTransport } from './custom-stdio.js';
 import { server, flushDeferredMessages } from './server.js';
 import { commandManager } from './command-manager.js';
@@ -48,7 +50,8 @@ async function runServer() {
     }
 
     // Set global flag for onboarding control
-    (global as any).disableOnboarding = DISABLE_ONBOARDING;
+    (global as any).disableOnboarding = DISABLE_ONBOARDING || (process.env.OPENCOMMANDER_CLI === '1' && process.env.OPENCOMMANDER_UPSTREAM_NUDGES !== '1');
+    (global as any).__ocTransport = 'stdio';
 
     // Create transport FIRST so all logging gets properly buffered
     // This must happen before any code that might use logger.*
@@ -62,9 +65,11 @@ async function runServer() {
       await configManager.loadConfig();
       deferLog('info', 'Configuration loaded successfully');
 
-      // Initialize feature flags (non-blocking)
-      deferLog('info', 'Initializing feature flags...');
-      await featureFlagManager.initialize();
+      // Initialize feature flags (non-blocking). OpenCommander CLI: skipped when telemetry is off.
+      if (process.env.OPENCOMMANDER_CLI !== '1' || process.env.DESKTOP_COMMANDER_DISABLE_TELEMETRY !== '1') {
+        deferLog('info', 'Initializing feature flags...');
+        await featureFlagManager.initialize();
+      }
     } catch (configError) {
       deferLog('error', `Failed to load configuration: ${configError instanceof Error ? configError.message : String(configError)}`);
       if (configError instanceof Error && configError.stack) {

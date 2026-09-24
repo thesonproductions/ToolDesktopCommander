@@ -1,0 +1,19 @@
+ ❯ src/math.test.ts (3 tests | 1 failed) 7ms
+   × math > divides 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/math.test.ts > math > divides
+AssertionError: expected 2 to be 3 // Object.is equality
+ ❯ src/math.test.ts:12:21
+     10|   it('divides', () => {
+     11|     const r = div(6, 3);
+     12|     expect(r).toBe(3);
+       |                     ^
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  1 failed | 40 passed | 2 skipped (43)
+   Start at  10:12:01
+   Duration  1.52s (transform 120ms, setup 0ms, collect 300ms, tests 50ms)

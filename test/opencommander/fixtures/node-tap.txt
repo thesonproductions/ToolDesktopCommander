@@ -1,0 +1,46 @@
+
+> np@1.0.0 test
+> node --test
+
+TAP version 13
+# Subtest: mul works
+ok 1 - mul works
+  ---
+  duration_ms: 0.876569
+  type: 'test'
+  ...
+# Subtest: mul broken
+not ok 2 - mul broken
+  ---
+  duration_ms: 0.944301
+  type: 'test'
+  location: '/tmp/nodeproj/test/lib.test.js:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    4 !== 5
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 5
+  actual: 4
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/nodeproj/test/lib.test.js:5:35)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 114.445588

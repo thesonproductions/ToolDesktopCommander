@@ -77,6 +77,11 @@ import {
     FILE_PREVIEW_RESOURCE_URI,
 } from './ui/contracts.js';
 import { listUiResources, readUiResource } from './ui/resources.js';
+// OpenCommander additions (kept in src/opencommander to ease upstream merges)
+import { getOcToolDefinitions, OC_VERSION } from './opencommander/tools.js';
+import { guardedCall } from './opencommander/guard.js';
+import { getConfig as getOcConfig } from './opencommander/config.js';
+import { SHORT_INSTRUCTIONS, WORKFLOW_GUIDE } from './opencommander/instructions.js';
 import { shouldShowMcpUiPreviews } from './utils/mcp-ui-ab-test.js';
 
 // Store startup messages to send after initialization
@@ -97,8 +102,8 @@ deferLog('info', 'Loading server.ts');
 
 export const server = new Server(
     {
-        name: "desktop-commander",
-        version: VERSION,
+        name: "opencommander",
+        version: OC_VERSION,
     },
     {
         capabilities: {
@@ -265,9 +270,10 @@ server.setRequestHandler(InitializeRequestSchema, async (request: InitializeRequ
                 logging: {},
             },
             serverInfo: {
-                name: "desktop-commander",
-                version: VERSION,
+                name: "opencommander",
+                version: OC_VERSION,
             },
+            instructions: `${SHORT_INSTRUCTIONS}\n\n${WORKFLOW_GUIDE}`,
         };
     } catch (error) {
         logToStderr('error', `Error in initialization handler: ${error}`);
@@ -1186,7 +1192,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         ];
 
         // Filter tools based on current client
-        const filteredTools = allTools.filter(tool => shouldIncludeTool(tool.name));
+        const hidden = new Set(process.env.OPENCOMMANDER_CLI === '1' ? getOcConfig().hidden_tools : []);
+        const upstreamTools = allTools
+            .filter(tool => shouldIncludeTool(tool.name) && !hidden.has(tool.name))
+            .map((tool: any) => {
+                // Every tool may hit the OpenCommander approval gate; let the model pass approval_id.
+                const schema = tool.inputSchema && typeof tool.inputSchema === 'object' ? { ...tool.inputSchema } : { type: 'object', properties: {} };
+                schema.properties = { ...(schema.properties || {}), approval_id: { type: 'string', description: 'Only when retrying a call that returned APPROVAL_REQUIRED after the user approved it.' } };
+                return { ...tool, description: String(tool.description || '').replace(/Desktop Commander/g, 'OpenCommander'), inputSchema: schema };
+            });
+        const filteredTools = [...getOcToolDefinitions(), ...upstreamTools];
 
         // logToStderr('debug', `Returning ${filteredTools.length} tools (filtered from ${allTools.length} total) for client: ${currentClient?.name || 'unknown'}`);
 
@@ -1211,10 +1226,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
     // (server_call_tool, server_read_file, server_edit_block, ...). Deliberate
     // UI interactions are tracked separately via mcp_ui_event.
     const isUiOriginCall = !!(args && typeof args === 'object' && (args as any).origin === 'ui');
-    if (isUiOriginCall) {
-        return runInUiOriginCallContext(() => handleCallToolRequest(request));
-    }
-    return handleCallToolRequest(request);
+    const run = (guardedArgs: Record<string, unknown>) => {
+        const req = { ...request, params: { ...request.params, arguments: guardedArgs } } as CallToolRequest;
+        return isUiOriginCall
+            ? runInUiOriginCallContext(() => handleCallToolRequest(req))
+            : handleCallToolRequest(req);
+    };
+    return await guardedCall(request.params.name, args, run as any) as ServerResult;
 });
 
 async function handleCallToolRequest(request: CallToolRequest): Promise<ServerResult> {
@@ -1515,7 +1533,9 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
             console.log(`[FEEDBACK DEBUG] Tool ${name} succeeded, checking feedback...`);
 
             // Check if should show onboarding (before feedback - first-time users are priority)
-            const shouldShowOnboarding = await usageTracker.shouldShowOnboarding();
+            // OpenCommander: never inject onboarding/feedback/docker marketing into tool results.
+            const ocNudgesEnabled = process.env.OPENCOMMANDER_UPSTREAM_NUDGES === '1' || process.env.OPENCOMMANDER_CLI !== '1';
+            const shouldShowOnboarding = ocNudgesEnabled && await usageTracker.shouldShowOnboarding();
             console.log(`[ONBOARDING DEBUG] Should show onboarding: ${shouldShowOnboarding}`);
 
             if (shouldShowOnboarding) {
@@ -1553,7 +1573,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
             }
 
             // Check if should prompt for feedback (only on successful operations)
-            const shouldPrompt = await usageTracker.shouldPromptForFeedback();
+            const shouldPrompt = ocNudgesEnabled && await usageTracker.shouldPromptForFeedback();
             console.log(`[FEEDBACK DEBUG] Should prompt for feedback: ${shouldPrompt}`);
 
             if (shouldPrompt) {
@@ -1592,7 +1612,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
             }
 
             // Check if should prompt about Docker environment
-            result = await processDockerPrompt(result, name);
+            if (ocNudgesEnabled) result = await processDockerPrompt(result, name);
         }
 
         // If the caller sent parameters this tool does not support, Zod silently
