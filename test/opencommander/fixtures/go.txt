@@ -1,0 +1,9 @@
+=== RUN   TestAdd
+--- PASS: TestAdd (0.00s)
+=== RUN   TestDiv
+    calc_test.go:14: expected 3, got 2
+--- FAIL: TestDiv (0.00s)
+FAIL
+FAIL	example.com/calc	0.004s
+ok  	example.com/util	0.002s
+FAIL

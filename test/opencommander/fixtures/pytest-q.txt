@@ -1,0 +1,32 @@
+.FF.                                                                     [100%]
+=================================== FAILURES ===================================
+________________________________ test_add_wrong ________________________________
+
+    def test_add_wrong():
+>       assert add(2, 2) == 5, "math is broken"
+E       AssertionError: math is broken
+E       assert 4 == 5
+E        +  where 4 = add(2, 2)
+
+tests/test_calc.py:7: AssertionError
+________________________________ test_div_zero _________________________________
+
+    def test_div_zero():
+>       assert div(1, 0) == 0
+               ^^^^^^^^^
+
+tests/test_calc.py:10: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = 1, b = 0
+
+    def div(a, b):
+>       return a / b
+               ^^^^^
+E       ZeroDivisionError: division by zero
+
+calc.py:5: ZeroDivisionError
+=========================== short test summary info ============================
+FAILED tests/test_calc.py::test_add_wrong - AssertionError: math is broken
+FAILED tests/test_calc.py::test_div_zero - ZeroDivisionError: division by zero
+2 failed, 2 passed in 0.02s
